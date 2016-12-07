@@ -1,12 +1,19 @@
 package org.misoton
 
+import scala.util.matching.Regex
+
 object Lexer {
   // トークン
-  trait Token
+  sealed trait Token
 
   // ID
   case class IDToken(value: String) extends Token {
     override def toString: String = "ID: \"" + value + "\""
+  }
+
+  // 固定文字列
+  case class ConstToken(value: String) extends Token {
+    override def toString: String = "Const: \"" + value + "\""
   }
 
   // Nil(親ノードのトークン)
@@ -88,9 +95,19 @@ object Lexer {
   implicit def string2lexer(str: String): Lexer = {
     lexerGen((input) => {
       val (inputStr, nodes) = input
-      if (inputStr startsWith str) Right((inputStr substring str.length, nodes :+ TokenTreeNode[IDToken](IDToken(str), Nil)))
+      if (inputStr startsWith str) Right((inputStr substring str.length, nodes :+ TokenTreeNode[ConstToken](ConstToken(str), Nil)))
       else Left("\"" + inputStr + "\" cannot match with \"" + str + "\"")
     })
+  }
+
+  // 正規表現からLexerの生成
+  implicit def regex2lexer(regex: Regex): Lexer = lexerGen{ (input) =>
+    val splitRegex: Regex = (regex.toString + """(.*)""").r
+    val (inputStr, nodes) = input
+    inputStr match {
+      case splitRegex(str, left) => Right((left, nodes :+ TokenTreeNode[IDToken](IDToken(str), Nil)))
+      case _ => Left("\"" + inputStr + "\" cannot match with \"" + regex.regex + "\"")
+    }
   }
 
   // 字句解析の実行
